@@ -1533,7 +1533,7 @@ _stream_callback_cfunction(const void *input, void *output, unsigned long frameC
     fprintf(stderr, "Error message: Could not call callback function\n");
 #endif
 
-    PyErr_SetString(PyExc_RuntimeError, "could not call callback function");
+    PyErr_Print();
     PyGILState_Release(_state);
     return paAbort;
   }
@@ -1541,37 +1541,52 @@ _stream_callback_cfunction(const void *input, void *output, unsigned long frameC
   const char* pData;
   int output_len;
   int returnVal;
-  if (PyTuple_Check(py_result)) {
-	  if (!PyArg_ParseTuple(py_result, "s#i",
-							&pData,
-							&output_len,
-							&returnVal)) {
-		  PyGILState_Release(_state);
-		  Py_DECREF(py_result);
-		  return paAbort;
-	  }
-  } else {
-	  if (!PyArg_Parse(py_result, "s#",
-					   &pData,
-					   &output_len)) {
-		  PyGILState_Release(_state);
-		  Py_DECREF(py_result);
-		  return paAbort;
-	  } else if (output_len == frameCount*bytesPerFrame) {
-		  returnVal = paContinue;
-	  } else {
-		  returnVal = paComplete;
-	  }
-  }
-  memcpy(output,pData,output_len <= frameCount*bytesPerFrame
-		 ? output_len
-		 : frameCount*bytesPerFrame);
-  Py_DECREF(py_result);
 
-  if (output_len < frameCount*bytesPerFrame) {
-    memset(output+output_len,0,frameCount*bytesPerFrame-output_len);
-    PyGILState_Release(_state);
-    return paComplete;
+  if (output) {
+    if (PyTuple_Check(py_result)) {
+      if (!PyArg_ParseTuple(py_result, "s#i",
+                            &pData,
+                            &output_len,
+                            &returnVal)) {
+        PyGILState_Release(_state);
+        Py_DECREF(py_result);
+        return paAbort;
+      }
+    } else {
+      if (!PyArg_Parse(py_result, "s#",
+                       &pData,
+                       &output_len)) {
+        PyGILState_Release(_state);
+        Py_DECREF(py_result);
+        return paAbort;
+      } else if (output_len == frameCount*bytesPerFrame) {
+        returnVal = paContinue;
+      } else {
+        returnVal = paComplete;
+      }
+    }
+    Py_DECREF(py_result);
+
+    memcpy(output,pData,output_len <= frameCount*bytesPerFrame
+           ? output_len
+           : frameCount*bytesPerFrame);
+
+    if (output_len < frameCount*bytesPerFrame) {
+      memset(output+output_len,0,frameCount*bytesPerFrame-output_len);
+      PyGILState_Release(_state);
+      return paComplete;
+    }
+
+  } else {
+    if (!PyInt_Check(py_result)) {
+      PyErr_SetString(PyExc_ValueError, "return value for input callback must be integer");
+      PyErr_Print();
+      PyGILState_Release(_state);
+      Py_DECREF(py_result);
+      return paAbort;
+    }
+    returnVal = PyInt_AS_LONG(py_result);
+    Py_DECREF(py_result);
   }
 
   PyGILState_Release(_state);
