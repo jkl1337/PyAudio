@@ -400,8 +400,9 @@ class Stream:
             are ``paInputOverflow``, ``paInputUnderflow``, ``paOutputOverflow``,
             ``paOutputUnderflow``, and ``paPrimingOutput``.
 
-            The function must return either a tuple containing the frames to
-            play and a status flag or just the audio data.
+            If the stream is an output stream the function must return either a
+            tuple containing the frames to play and a status flag or just the audio
+            data.
             If given a tuple, the flag can be either `paContinue` (normal
             playback/recording), `paComplete` (stop playing/recording after
             this block) or `paAbort` (error).
@@ -409,6 +410,10 @@ class Stream:
             of frames implies ``paContinue``, while returning less than the right
             number of frames implies ``paComplete``. Returning nothing implies
             ``paError``.
+            If the stream is not an output stream, the return must be just a
+            flag (`paContinue`, `paComplete`, or `paAbort`) as described above for
+            the return tuple.
+
 
         :raise ValueError: Neither input nor output
          are set True.
